@@ -2,7 +2,7 @@
 #ifndef UDP_GENERATOR_LISTENER_INCLUDES_H
 #define UDP_GENERATOR_LISTENER_INCLUDES_H
 
-#define UDP_LENGTH_DATAGRAMM 32768
+#define UDP_LENGTH_DATAGRAMM 1000 //32768
 
 #include <sys/types.h>
 #include <sys/socket.h>

@@ -31,7 +31,7 @@ void UDPListener::handle() {
     {
         bytes_read = recvfrom(this_socket, buf, 32768, 0, NULL, NULL);
         buf[bytes_read] = '\0';
-        printf(buf);
+        printf("%s\n", buf);
     }
 }
 

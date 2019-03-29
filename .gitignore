@@ -1,2 +1,8 @@
-cmake-build-debug/
+#folder build cmake clion
+cmake-build-debug/ 
+
+#folder xmls clion
 .idea/
+
+#folder build cmake console
+build/
