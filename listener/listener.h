@@ -8,12 +8,13 @@ class UDPListener
 public:
     UDPListener();
     ~UDPListener();
-    void startListener(unsigned short listen_port );
+    void startListener(unsigned short listen_port);
     void closeListener();
 
 private:
     int this_socket;
-    void handle();
+    void handle(std::atomic<long>* received_bytes);
+    void calculatingSpeed(std::atomic<long>* received_bytes);
 };
 
 
