@@ -1,6 +1,5 @@
 
-#ifndef UDP_GENERATOR_LISTENER_INCLUDES_H
-#define UDP_GENERATOR_LISTENER_INCLUDES_H
+#pragma once
 
 #define UDP_LENGTH_DATAGRAMM 32768
 
@@ -16,6 +15,5 @@
 #include <iostream>
 #include <iomanip>
 #include <atomic>
-#include <thread>
+#include <boost/thread.hpp>
 
-#endif //UDP_GENERATOR_LISTENER_INCLUDES_H

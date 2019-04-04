@@ -1,36 +1,49 @@
 
 
-#include "generator.h"
+#include "generator.hpp"
 
-UDPGenerator::UDPGenerator() = default;
+UDPGenerator::UDPGenerator() : UDPGenerator(0){}
 
-UDPGenerator::~UDPGenerator() = default;
-
-void UDPGenerator::startGenerator(unsigned short sport, std::string d_ip, unsigned short dport) {
+UDPGenerator::UDPGenerator(unsigned short sport) {
     struct sockaddr_in s_addr;
+    t_running = true;
 
-    try {
-        if((this_socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-            throw "socket function";
-        //errno
-        s_addr.sin_family = AF_INET;
-        s_addr.sin_port = htons(sport);
-        s_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    if((this_socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+        throw std::runtime_error("error create socket!");
 
-        if(bind(this_socket, (struct sockaddr *)&s_addr, sizeof(s_addr)) < 0) {
-            throw "bind function";
+    s_addr.sin_family = AF_INET;
+    s_addr.sin_port = htons(sport);
+    s_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-        }
-        struct sockaddr_in d_addr;
-        d_addr.sin_family = AF_INET;
-        inet_pton(AF_INET, d_ip.c_str(), &(d_addr.sin_addr));
-        d_addr.sin_port = htons(dport);
-        handle(d_addr);
+    if(bind(this_socket, (struct sockaddr *)&s_addr, sizeof(s_addr)) < 0)
+        throw std::runtime_error("error bind socket with address!");
+}
+
+
+UDPGenerator::~UDPGenerator() {
+    close(this_socket);
+}
+void UDPGenerator::setDestAddr(std::string dest_ip, unsigned short dport) {
+    d_addr.sin_family = AF_INET;
+    inet_pton(AF_INET, dest_ip.c_str(), &(d_addr.sin_addr));
+    d_addr.sin_port = htons(dport);
+}
+
+void UDPGenerator::startGenerator() {
+    boost::thread sender(&UDPGenerator::handle, this);
+    std::cout << "Begining sending..." << std::endl;
+    std::cout << "For stopping send input \"stop\": " << std::endl;
+    sender.detach();
+
+    std::string signal;
+    do {
+        std::cin >> signal;
     }
-    catch (const char * err) {
-        perror(err);
-        closeGenerator();
-    }
+    while(signal != "stop");
+    t_running = false;
+
+    sender.interrupt();
+    sender.join();
 }
 int UDPGenerator::fillTestMessage(char * msg)
 {
@@ -44,17 +57,12 @@ int UDPGenerator::fillTestMessage(char * msg)
     msg[counter] = '\0';
     return counter;
 }
-void UDPGenerator::handle(struct sockaddr_in d_addr) {
+void UDPGenerator::handle() {
     char msg[UDP_LENGTH_DATAGRAMM];
-    int size_dgram = fillTestMessage(msg);
-    while(true) {
+    auto size_dgram = static_cast<size_t >(fillTestMessage(msg));
+    while(t_running) {
         if (sendto(this_socket, msg, size_dgram, 0, (struct sockaddr*)&d_addr, sizeof(d_addr)) < 0) {
-            perror("sendto");
-            close(this_socket);
+            throw std::runtime_error("error sendto function socket");
         }
-        //sleep(1);
     }
-}
-void UDPGenerator::closeGenerator() {
-    close(this_socket);
 }

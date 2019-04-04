@@ -10,14 +10,15 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED on)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
 
-#add_library(generator_lib STATIC generator/generator.cpp)
-#add_library(listener_lib STATIC listener/listener.cpp)
+FIND_PACKAGE( Boost 1.40 COMPONENTS thread REQUIRED )
+INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR})
 
-add_executable(main main.cpp)
+set(SOURCES main.cpp generator/generator.cpp listener/listener.cpp)
+set(HEADERS includes.hpp generator/generator.hpp listener/listener.hpp)
 
-add_subdirectory(generator)
-add_subdirectory(listener)
+add_executable(main ${SOURCES} ${HEADERS})
 
-#target_link_libraries(listener_lib pthread)
-target_link_libraries(main listener_lib)
-target_link_libraries(main generator_lib)
+target_include_directories(main PUBLIC generator)
+target_include_directories(main PUBLIC listener)
+
+target_link_libraries( main ${Boost_LIBRARIES} )
