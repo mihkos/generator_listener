@@ -14,7 +14,6 @@ public:
 private:
     int this_socket;
     struct sockaddr_in d_addr;
-    std::atomic<bool> t_running;
     void handle();
-    int fillTestMessage(char * msg);
+    size_t fillTestMessage(char * msg);
 };

@@ -11,7 +11,6 @@ public:
 
 private:
     int this_socket;
-    std::atomic<bool> t_running;
     void handle(std::atomic<long>* received_bytes);
     void calculatingSpeed(std::atomic<long>* received_bytes);
 };

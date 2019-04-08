@@ -15,5 +15,12 @@
 #include <iostream>
 #include <iomanip>
 #include <atomic>
-#include <boost/thread.hpp>
+#include <thread>
+#include <csignal>
+#include <signal.h>
 
+
+namespace globalarea {
+    extern volatile std::sig_atomic_t t_running;
+
+}

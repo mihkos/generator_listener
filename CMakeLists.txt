@@ -1,24 +1,25 @@
 cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
 
-project(udp_generator_listener)
+project(udp_generator_listener CXX)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED on)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall")
+set(CMAKE_REQUIRED_FLAGS -std=c++17)
 
-FIND_PACKAGE( Boost 1.40 COMPONENTS thread REQUIRED )
-INCLUDE_DIRECTORIES( ${Boost_INCLUDE_DIR})
+find_library(PTHREAD_LIB pthread)
+if(NOT PTHREAD_LIB)
+    message(FATAL_ERROR "pthread library not found")
+endif()
 
 set(SOURCES main.cpp generator/generator.cpp listener/listener.cpp)
-set(HEADERS includes.hpp generator/generator.hpp listener/listener.hpp)
 
-add_executable(main ${SOURCES} ${HEADERS})
 
+add_executable(main ${SOURCES})
+set_property(TARGET main PROPERTY CXX_STANDARD 17)
 target_include_directories(main PUBLIC generator)
 target_include_directories(main PUBLIC listener)
 
-target_link_libraries( main ${Boost_LIBRARIES} )
+target_link_libraries(main pthread )

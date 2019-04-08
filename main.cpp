@@ -11,6 +11,9 @@
 #define RES_OPTION_LISTENER 0x5
 #define RES_OPTION_GENERATOR 0x1E
 
+namespace globalarea {
+    volatile std::sig_atomic_t t_running = 1;
+}
 struct params {
     int type_app = -1; // flags -l or -g
     unsigned short sport = 0; // option -p
@@ -59,22 +62,25 @@ int parseArgs(int argc, char** argv, struct params* current_params) {
                 break;
             case 'p':
                 test = static_cast<int>(strtol(optarg, &end, 10));
-                if (optarg == end)
+                if (optarg == end) {
                     throw std::runtime_error("Error value destionation port");
+                }
                 current_params->sport = static_cast<unsigned short>(test);
                 res_option += OPTION_SPORT;
                 break;
             case 'D':
                 test = inet_pton(AF_INET, optarg, &(check_ip.sin_addr));
-                if (test <= 0)
+                if (test <= 0) {
                     throw std::runtime_error("Error ip string");
+                }
                 current_params->d_ip = std::string(optarg);
                 res_option += OPTION_DEST_IP;
                 break;
             case 'd':
                 test = static_cast<int>(strtol(optarg, &end, 10));
-                if (optarg == end)
+                if (optarg == end) {
                     throw std::runtime_error("Error value port");
+                }
                 current_params->dport = static_cast<unsigned short>(test);
                 res_option += OPTION_DPORT;
                 break;
@@ -96,30 +102,40 @@ int parseArgs(int argc, char** argv, struct params* current_params) {
     return 0;
 };
 
-
+void signal_handler(int signum)
+{
+    globalarea::t_running = false;
+}
 int main(int argc, char** argv) {
     try
     {
         struct params current_params;
-        if(parseArgs(argc, argv, &current_params) < 0)
-            return 0;
+        if(parseArgs(argc, argv, &current_params) < 0) {
+            return -1;
+        }
+
+        struct sigaction sa;
+        sigset_t newset;
+        sigemptyset(&newset);
+        sigaddset(&newset, SIGINT);
+        sa.sa_handler = signal_handler;
+        sigaction(SIGINT, &sa, 0);
 
         if(current_params.type_app == GENERATOR_TYPE) {
             UDPGenerator generator(current_params.sport);
             generator.testMessage = current_params.test_message;
             generator.setDestAddr(current_params.d_ip, current_params.dport);
             generator.startGenerator();
-
         }
-        if(current_params.type_app == LISTENER_TYPE) {
-            auto listener = new UDPListener(current_params.sport);
-            listener->startListener();
 
+        if(current_params.type_app == LISTENER_TYPE) {
+            UDPListener listener(current_params.sport);
+            listener.startListener();
         }
     }
-    catch ( const std::exception& error )
-    {
+    catch ( const std::exception& error ) {
         std::cerr << "Caught: " << error.what( ) << std::endl;
+        return 1;
     };
 
     return 0;

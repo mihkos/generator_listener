@@ -5,20 +5,20 @@
 UDPGenerator::UDPGenerator() : UDPGenerator(0){}
 
 UDPGenerator::UDPGenerator(unsigned short sport) {
-    struct sockaddr_in s_addr;
-    t_running = true;
-
-    if((this_socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+    if((this_socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0){
         throw std::runtime_error("error create socket!");
+    }
 
+    struct sockaddr_in s_addr;
     s_addr.sin_family = AF_INET;
     s_addr.sin_port = htons(sport);
     s_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    if(bind(this_socket, (struct sockaddr *)&s_addr, sizeof(s_addr)) < 0)
+    if(bind(this_socket, (struct sockaddr *)&s_addr, sizeof(s_addr)) < 0) {
+        close(this_socket);
         throw std::runtime_error("error bind socket with address!");
+    }
 }
-
 
 UDPGenerator::~UDPGenerator() {
     close(this_socket);
@@ -30,22 +30,14 @@ void UDPGenerator::setDestAddr(std::string dest_ip, unsigned short dport) {
 }
 
 void UDPGenerator::startGenerator() {
-    boost::thread sender(&UDPGenerator::handle, this);
+    std::thread sender([&] {handle();});
     std::cout << "Begining sending..." << std::endl;
-    std::cout << "For stopping send input \"stop\": " << std::endl;
-    sender.detach();
-
-    std::string signal;
-    do {
-        std::cin >> signal;
-    }
-    while(signal != "stop");
-    t_running = false;
-
-    sender.interrupt();
+    std::cout << "For stopping send input \"ctrl+c\": " << std::endl;
     sender.join();
+    std::cout << "Sending stopped" << std::endl;
 }
-int UDPGenerator::fillTestMessage(char * msg)
+
+size_t UDPGenerator::fillTestMessage(char * msg)
 {
     int counter = 0;
     int size_test_message = static_cast<int>(testMessage.length());
@@ -55,12 +47,17 @@ int UDPGenerator::fillTestMessage(char * msg)
         counter += size_test_message;
     }
     msg[counter] = '\0';
-    return counter;
+    return static_cast<size_t >(counter);
 }
+
 void UDPGenerator::handle() {
+    sigset_t smask;
+    sigaddset(&smask, SIGINT);
+    pthread_sigmask(SIG_BLOCK, &smask, nullptr);
+
     char msg[UDP_LENGTH_DATAGRAMM];
-    auto size_dgram = static_cast<size_t >(fillTestMessage(msg));
-    while(t_running) {
+    auto size_dgram = fillTestMessage(msg);
+    while(globalarea::t_running) {
         if (sendto(this_socket, msg, size_dgram, 0, (struct sockaddr*)&d_addr, sizeof(d_addr)) < 0) {
             throw std::runtime_error("error sendto function socket");
         }
