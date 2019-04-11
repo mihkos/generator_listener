@@ -2,16 +2,16 @@
 #pragma once
 
 #include "../includes.hpp"
+
 class UDPListener
 {
 public:
-    UDPListener(unsigned short listen_port);
+    UDPListener() = delete;
+    UDPListener(const struct params& current_params);
     ~UDPListener();
-    void startListener();
+    void start();
 
 private:
-    int this_socket;
-    void handle(std::atomic<long>* received_bytes);
-    void calculatingSpeed(std::atomic<long>* received_bytes);
+    int32_t this_socket;
 };
 

@@ -5,15 +5,13 @@
 
 class UDPGenerator{
 public:
-    UDPGenerator();
-    UDPGenerator(unsigned short sport);
+    UDPGenerator() = delete;
+    UDPGenerator(const struct params& current_params);
     ~UDPGenerator();
-    void startGenerator();
-    void setDestAddr(std::string dest_ip, unsigned short dport);
+    void start();
     std::string testMessage;
 private:
     int this_socket;
     struct sockaddr_in d_addr;
-    void handle();
     size_t fillTestMessage(char * msg);
 };

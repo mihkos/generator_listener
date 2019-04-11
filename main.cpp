@@ -7,27 +7,22 @@
 #define OPTION_SPORT 0x4
 #define OPTION_DEST_IP 0x8
 #define OPTION_DPORT 0x10
+#define OPTION_HELP 0x20
 
 #define RES_OPTION_LISTENER 0x5
 #define RES_OPTION_GENERATOR 0x1E
+#define RES_OPTION_HELP 0x20
 
-namespace globalarea {
-    volatile std::sig_atomic_t t_running = 1;
-}
-struct params {
-    int type_app = -1; // flags -l or -g
-    unsigned short sport = 0; // option -p
-    unsigned short dport = 0; //option -d
-    std::string d_ip = "127.0.0.0"; //option -D
-    std::string test_message = "test message"; //option -m
-};
 
-void usage(char** argv) {
-    std::cout << "Use for udp_listener: " << argv[0] << "-l -p <listening_port>" << std::endl \
-              << "or use for udp_generator: " << argv[0] << "-g -p <source_port> -D <dest_ip> "
+volatile bool t_running = true;
+
+std::string usage(char** argv) {
+    std::stringstream help_stream;
+    help_stream << "Use for udp_listener: " << argv[0] << " -l -p <listening_port>" << std::endl \
+              << "or use for udp_generator: " << argv[0] << " -g -p <source_port> -D <dest_ip> "
                                                             "-d <dest_port> [-m <test_msg>]" << std::endl << std::endl;
 
-    std::cout << "Help information: " \
+    help_stream << "Help information: " \
     << "-h - help information" << std::endl \
     << "-l, -g - flags type of application (listener or generator)" << std::endl \
     << "-p <port> - (with -l or -g) option listening port or source port" << std::endl \
@@ -35,84 +30,87 @@ void usage(char** argv) {
     << "\t -D <ip> - option destination ip" << std::endl \
     << "\t -d <port> - option destination port" << std::endl \
     << "\t -m <string_without_space> - option for set test message without space(for now)" << std::endl;
+    return help_stream.str();
 }
 
 int parseArgs(int argc, char** argv, struct params* current_params) {
-    int res;
-    char* end;
-    struct sockaddr_in check_ip;
-    int test = 0;
-    unsigned char res_option = 0;
+    int32_t res;
+    uint8_t res_option = 0;
     if(argc < 2) {
-        usage(argv);
-        return -1;
+        throw std::runtime_error(std::string("Not enough parameters!\n") + usage(argv));
     }
     while ((res = getopt(argc, argv, "hlgp:D:d:m:")) != -1) {
         switch (res) {
-            case 'h':
-                usage(argv);
-                return -1;
-            case 'l':
+            case 'h': {
+                res_option += OPTION_HELP;
+                break;
+            }
+            case 'l': {
                 current_params->type_app = LISTENER_TYPE;
                 res_option += LISTENER_TYPE;
                 break;
-            case 'g':
+            }
+            case 'g': {
                 current_params->type_app = GENERATOR_TYPE;
                 res_option += GENERATOR_TYPE;
                 break;
-            case 'p':
-                test = static_cast<int>(strtol(optarg, &end, 10));
+            }
+            case 'p': {
+                char *end;
+                auto test = strtol(optarg, &end, 10);
                 if (optarg == end) {
-                    throw std::runtime_error("Error value destionation port");
+                    throw std::runtime_error("ERROR value destionation port");
                 }
                 current_params->sport = static_cast<unsigned short>(test);
                 res_option += OPTION_SPORT;
                 break;
-            case 'D':
-                test = inet_pton(AF_INET, optarg, &(check_ip.sin_addr));
+            }
+            case 'D': {
+                struct sockaddr_in check_ip;
+                auto test = inet_pton(AF_INET, optarg, &(check_ip.sin_addr));
                 if (test <= 0) {
-                    throw std::runtime_error("Error ip string");
+                    throw std::runtime_error("ERROR IP format string");
                 }
-                current_params->d_ip = std::string(optarg);
+                current_params->dest_ip = std::string(optarg);
                 res_option += OPTION_DEST_IP;
                 break;
-            case 'd':
-                test = static_cast<int>(strtol(optarg, &end, 10));
+            }
+            case 'd': {
+                char *end;
+                auto test = strtol(optarg, &end, 10);
                 if (optarg == end) {
-                    throw std::runtime_error("Error value port");
+                    throw std::runtime_error("ERROR value port");
                 }
                 current_params->dport = static_cast<unsigned short>(test);
                 res_option += OPTION_DPORT;
                 break;
-            case 'm':
+            }
+            case 'm': {
                 current_params->test_message = std::string(optarg);
                 break;
-            case '?':
-                std::cerr << "Error option!" << std::endl;
-                usage(argv);
-                return -1;
+            }
+            case '?': {
+                throw std::runtime_error("ERROR options set! For help use -h");
+            }
         };
     };
-    if(res_option != RES_OPTION_GENERATOR && res_option != RES_OPTION_LISTENER) {
-        std::cerr << "Error options!" << std::endl;
-        usage(argv);
-        return -1;
+    if(res_option == RES_OPTION_HELP) {
+        std::cout << usage(argv);
     }
-
-    return 0;
+    else if(res_option != RES_OPTION_GENERATOR && res_option != RES_OPTION_LISTENER ) {
+        throw std::runtime_error("ERROR options set! For help use -h");
+    }
 };
 
 void signal_handler(int signum)
 {
-    globalarea::t_running = false;
+    t_running = false;
 }
 int main(int argc, char** argv) {
     try
     {
         struct params current_params;
-        if(parseArgs(argc, argv, &current_params) < 0) {
-            return -1;
-        }
+        parseArgs(argc, argv, &current_params);
 
         struct sigaction sa;
         sigset_t newset;
@@ -122,15 +120,14 @@ int main(int argc, char** argv) {
         sigaction(SIGINT, &sa, 0);
 
         if(current_params.type_app == GENERATOR_TYPE) {
-            UDPGenerator generator(current_params.sport);
+            UDPGenerator generator(current_params);
             generator.testMessage = current_params.test_message;
-            generator.setDestAddr(current_params.d_ip, current_params.dport);
-            generator.startGenerator();
+            generator.start();
         }
 
         if(current_params.type_app == LISTENER_TYPE) {
-            UDPListener listener(current_params.sport);
-            listener.startListener();
+            UDPListener listener(current_params);
+            listener.start();
         }
     }
     catch ( const std::exception& error ) {
