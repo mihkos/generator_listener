@@ -121,7 +121,6 @@ int main(int argc, char** argv) {
 
         if(current_params.type_app == GENERATOR_TYPE) {
             UDPGenerator generator(current_params);
-            generator.testMessage = current_params.test_message;
             generator.start();
         }
 

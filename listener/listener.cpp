@@ -35,10 +35,7 @@ void UDPListener::start() {
 
     uint64_t received_bytes(0);
     std::thread sleeper([&] () {
-        sigset_t smask;
-        sigaddset(&smask, SIGINT);
-        pthread_sigmask(SIG_BLOCK, &smask, nullptr);
-        double one_mbt = 1024 * 1024;
+        double one_mbt = 1024 * 128;
         uint64_t last_seen_received_bytes(0);
         auto start = std::chrono::system_clock::now();
         while(t_running) {
@@ -52,10 +49,7 @@ void UDPListener::start() {
             start = std::chrono::system_clock::now();
         }
     });
-    std::thread receiver([&] () mutable {
-        sigset_t smask;
-        sigaddset(&smask, SIGINT);
-        pthread_sigmask(SIG_BLOCK, &smask, nullptr);
+    std::thread receiver([&] () {
         char buf[UDP_LENGTH_DATAGRAM];
         while(t_running) {
             auto bytes_read = recvfrom(this_socket, buf, UDP_LENGTH_DATAGRAM, 0, nullptr, nullptr);

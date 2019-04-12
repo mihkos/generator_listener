@@ -16,6 +16,8 @@ UDPGenerator::UDPGenerator(const struct params& current_params) {
         throw std::runtime_error("error bind socket with address!");
     }
 
+    testMessage = createTestMessage(current_params.test_message);
+
     d_addr.sin_family = AF_INET;
     inet_pton(AF_INET, current_params.dest_ip.c_str(), &(d_addr.sin_addr));
     d_addr.sin_port = htons(current_params.dport);
@@ -27,14 +29,8 @@ UDPGenerator::~UDPGenerator() {
 
 void UDPGenerator::start() {
     std::thread sender([&] () {
-        sigset_t smask;
-        sigaddset(&smask, SIGINT);
-        pthread_sigmask(SIG_BLOCK, &smask, nullptr);
-
-        char msg[UDP_LENGTH_DATAGRAM];
-        auto size_dgram = fillTestMessage(msg);
         while(t_running) {
-            if (sendto(this_socket, msg, size_dgram, 0, (struct sockaddr*)&d_addr, sizeof(d_addr)) < 0) {
+            if (sendto(this_socket, &testMessage[0], testMessage.size(), 0, (struct sockaddr*)&d_addr, sizeof(d_addr)) < 0) {
                 throw std::runtime_error("error sendto function socket");
             }
         }
@@ -45,15 +41,14 @@ void UDPGenerator::start() {
     std::cout << "Sending stopped" << std::endl;
 }
 
-size_t UDPGenerator::fillTestMessage(char * msg)
-{
+std::vector<char> UDPGenerator::createTestMessage(std::string templ_msg) {
+    std::vector<char> res_test_msg;
     size_t counter = 0;
-    auto size_test_message = testMessage.length();
-    auto c_str_test_message = testMessage.c_str();
+    auto size_test_message = templ_msg.length();
     while(counter + size_test_message < UDP_LENGTH_DATAGRAM) {
-        strcpy(msg + counter, c_str_test_message);
+        std::copy(templ_msg.begin(), templ_msg.end(), std::back_inserter(res_test_msg));
         counter += size_test_message;
     }
-    msg[counter] = '\0';
-    return counter;
+    std::copy(templ_msg.c_str(), templ_msg.c_str()+(UDP_LENGTH_DATAGRAM - counter), std::back_inserter(res_test_msg));
+    return res_test_msg;
 }
