@@ -3,15 +3,22 @@
 
 #include "../includes.hpp"
 
-class UDPListener
-{
+class UDPListener : Listener {
 public:
     UDPListener() = delete;
-    UDPListener(const struct params& current_params);
+    UDPListener(const params& current_params);
     ~UDPListener();
     void start();
 
-private:
-    int32_t this_socket;
 };
 
+class TCPListener : Listener {
+public:
+    TCPListener() = delete;
+    TCPListener(const params& current_params);
+    ~TCPListener();
+    void start();
+
+private:
+    std::vector<std::thread> _connetions;
+};

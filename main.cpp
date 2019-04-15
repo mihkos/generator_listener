@@ -9,6 +9,7 @@
 #define OPTION_DPORT 0x10
 #define OPTION_HELP 0x20
 
+
 #define RES_OPTION_LISTENER 0x5
 #define RES_OPTION_GENERATOR 0x1E
 #define RES_OPTION_HELP 0x20
@@ -18,13 +19,14 @@ volatile bool t_running = true;
 
 std::string usage(char** argv) {
     std::stringstream help_stream;
-    help_stream << "Use for udp_listener: " << argv[0] << " -l -p <listening_port>" << std::endl \
-              << "or use for udp_generator: " << argv[0] << " -g -p <source_port> -D <dest_ip> "
+    help_stream << "Use for udp_listener: " << argv[0] << " -l <udp|tcp> -p <listening_port>" << std::endl \
+              << "or use for udp_generator: " << argv[0] << " -g <udp|tcp> -p <source_port> -D <dest_ip> "
                                                             "-d <dest_port> [-m <test_msg>]" << std::endl << std::endl;
 
     help_stream << "Help information: " \
     << "-h - help information" << std::endl \
-    << "-l, -g - flags type of application (listener or generator)" << std::endl \
+    << "-l <udp|tcp> - option type of application listener for proto UDP or TCP" << std::endl \
+    << "-g <udp|tcp> - option type of application generator for proto UDP or TCP" << std::endl \
     << "-p <port> - (with -l or -g) option listening port or source port" << std::endl \
     << "only for -g flag: " << std::endl \
     << "\t -D <ip> - option destination ip" << std::endl \
@@ -33,13 +35,13 @@ std::string usage(char** argv) {
     return help_stream.str();
 }
 
-int parseArgs(int argc, char** argv, struct params* current_params) {
+int parseArgs(int argc, char** argv, params* current_params) {
     int32_t res;
     uint8_t res_option = 0;
     if(argc < 2) {
         throw std::runtime_error(std::string("Not enough parameters!\n") + usage(argv));
     }
-    while ((res = getopt(argc, argv, "hlgp:D:d:m:")) != -1) {
+    while ((res = getopt(argc, argv, "hl:g:p:D:d:m:")) != -1) {
         switch (res) {
             case 'h': {
                 res_option += OPTION_HELP;
@@ -48,11 +50,27 @@ int parseArgs(int argc, char** argv, struct params* current_params) {
             case 'l': {
                 current_params->type_app = LISTENER_TYPE;
                 res_option += LISTENER_TYPE;
+                std::string proto(optarg);
+                std::transform(proto.begin(), proto.end(), proto.begin(), ::tolower);
+                if(proto == "udp")
+                    current_params->type_proto = IPPROTO_UDP;
+                else if(proto == "tcp")
+                    current_params->type_proto = IPPROTO_TCP;
+                else
+                    throw std::runtime_error("ERROR type protocol for app");
                 break;
             }
             case 'g': {
                 current_params->type_app = GENERATOR_TYPE;
                 res_option += GENERATOR_TYPE;
+                std::string proto(optarg);
+                std::transform(proto.begin(), proto.end(), proto.begin(), ::tolower);
+                if(proto == "udp")
+                    current_params->type_proto = IPPROTO_UDP;
+                else if(proto == "tcp")
+                    current_params->type_proto = IPPROTO_TCP;
+                else
+                    throw std::runtime_error("ERROR type protocol for app");
                 break;
             }
             case 'p': {
@@ -66,7 +84,7 @@ int parseArgs(int argc, char** argv, struct params* current_params) {
                 break;
             }
             case 'D': {
-                struct sockaddr_in check_ip;
+                sockaddr_in check_ip;
                 auto test = inet_pton(AF_INET, optarg, &(check_ip.sin_addr));
                 if (test <= 0) {
                     throw std::runtime_error("ERROR IP format string");
@@ -109,7 +127,7 @@ void signal_handler(int signum)
 int main(int argc, char** argv) {
     try
     {
-        struct params current_params;
+        params current_params;
         parseArgs(argc, argv, &current_params);
 
         struct sigaction sa;
@@ -120,13 +138,25 @@ int main(int argc, char** argv) {
         sigaction(SIGINT, &sa, 0);
 
         if(current_params.type_app == GENERATOR_TYPE) {
-            UDPGenerator generator(current_params);
-            generator.start();
+            if(current_params.type_proto == IPPROTO_UDP) {
+                UDPGenerator generator(current_params);
+                generator.start();
+            }
+            else if(current_params.type_proto == IPPROTO_TCP) {
+                TCPGenerator generator(current_params);
+                generator.start();
+            }
         }
 
         if(current_params.type_app == LISTENER_TYPE) {
-            UDPListener listener(current_params);
-            listener.start();
+            if(current_params.type_proto == IPPROTO_UDP) {
+                UDPListener listener(current_params);
+                listener.start();
+            }
+            else if(current_params.type_proto == IPPROTO_TCP) {
+                TCPListener listener(current_params);
+                listener.start();
+            }
         }
     }
     catch ( const std::exception& error ) {

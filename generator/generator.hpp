@@ -3,16 +3,18 @@
 
 #include "../includes.hpp"
 
-class UDPGenerator{
+class UDPGenerator : Generator{
 public:
     UDPGenerator() = delete;
-    UDPGenerator(const struct params& current_params);
+    UDPGenerator(const params& current_params);
     ~UDPGenerator();
     void start();
+};
 
-private:
-    int this_socket;
-    struct sockaddr_in d_addr;
-    std::vector<char> testMessage;
-    static std::vector<char> createTestMessage(std::string templ_msg);
+class TCPGenerator : Generator{
+public:
+    TCPGenerator() = delete;
+    TCPGenerator(const params& current_params);
+    ~TCPGenerator();
+    void start();
 };
