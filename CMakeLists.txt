@@ -25,7 +25,7 @@ if(NOT PTHREAD_LIB)
     message(FATAL_ERROR "pthread library not found")
 endif()
 
-set(SOURCES main.cpp)
+set(SOURCES main.cpp socket.cpp)
 
 
 add_executable(main ${SOURCES})

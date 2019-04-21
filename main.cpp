@@ -13,11 +13,9 @@
 #define OPTION_DPORT 0x10
 #define OPTION_HELP 0x20
 
-
 #define RES_OPTION_LISTENER 0x5
 #define RES_OPTION_GENERATOR 0x1E
 #define RES_OPTION_HELP 0x20
-
 
 volatile bool t_running = true;
 
@@ -26,7 +24,6 @@ std::string usage(char** argv) {
     help_stream << "Use for udp_listener: " << argv[0] << " -l <udp|tcp> -p <listening_port>" << std::endl \
               << "or use for udp_generator: " << argv[0] << " -g <udp|tcp> -p <source_port> -D <dest_ip> "
                                                             "-d <dest_port> [-m <test_msg>]" << std::endl << std::endl;
-
     help_stream << "Help information: " \
     << "-h - help information" << std::endl \
     << "-l <udp|tcp> - option type of application listener for proto UDP or TCP" << std::endl \
@@ -39,12 +36,13 @@ std::string usage(char** argv) {
     return help_stream.str();
 }
 
-int parseArgs(int argc, char** argv, params* current_params) {
+params parseArgs(int argc, char** argv) {
     int32_t res;
     uint8_t res_option = 0;
     if(argc < 2) {
         throw std::runtime_error(std::string("Not enough parameters!\n") + usage(argv));
     }
+    params current_params;
     while ((res = getopt(argc, argv, "hl:g:p:D:d:m:")) != -1) {
         switch (res) {
             case 'h': {
@@ -52,27 +50,27 @@ int parseArgs(int argc, char** argv, params* current_params) {
                 break;
             }
             case 'l': {
-                current_params->_type_app = LISTENER_TYPE;
+                current_params._type_app = LISTENER_TYPE;
                 res_option += LISTENER_TYPE;
                 std::string proto(optarg);
                 std::transform(proto.begin(), proto.end(), proto.begin(), ::tolower);
                 if(proto == "udp")
-                    current_params->_type_proto = IPPROTO_UDP;
+                    current_params._type_proto = IPPROTO_UDP;
                 else if(proto == "tcp")
-                    current_params->_type_proto = IPPROTO_TCP;
+                    current_params._type_proto = IPPROTO_TCP;
                 else
                     throw std::runtime_error("ERROR type protocol for app");
                 break;
             }
             case 'g': {
-                current_params->_type_app = GENERATOR_TYPE;
+                current_params._type_app = GENERATOR_TYPE;
                 res_option += GENERATOR_TYPE;
                 std::string proto(optarg);
                 std::transform(proto.begin(), proto.end(), proto.begin(), ::tolower);
                 if(proto == "udp")
-                    current_params->_type_proto = IPPROTO_UDP;
+                    current_params._type_proto = IPPROTO_UDP;
                 else if(proto == "tcp")
-                    current_params->_type_proto = IPPROTO_TCP;
+                    current_params._type_proto = IPPROTO_TCP;
                 else
                     throw std::runtime_error("ERROR type protocol for app");
                 break;
@@ -83,7 +81,7 @@ int parseArgs(int argc, char** argv, params* current_params) {
                 if (optarg == end) {
                     throw std::runtime_error("ERROR value destionation port");
                 }
-                current_params->_sport = static_cast<unsigned short>(test);
+                current_params._sport = static_cast<unsigned short>(test);
                 res_option += OPTION_SPORT;
                 break;
             }
@@ -93,7 +91,7 @@ int parseArgs(int argc, char** argv, params* current_params) {
                 if (test <= 0) {
                     throw std::runtime_error("ERROR IP format string");
                 }
-                current_params->_dest_ip = std::string(optarg);
+                current_params._dest_ip = std::string(optarg);
                 res_option += OPTION_DEST_IP;
                 break;
             }
@@ -103,12 +101,12 @@ int parseArgs(int argc, char** argv, params* current_params) {
                 if (optarg == end) {
                     throw std::runtime_error("ERROR value port");
                 }
-                current_params->_dport = static_cast<unsigned short>(test);
+                current_params._dport = static_cast<unsigned short>(test);
                 res_option += OPTION_DPORT;
                 break;
             }
             case 'm': {
-                current_params->_test_message = std::string(optarg);
+                current_params._test_message = std::string(optarg);
                 break;
             }
             case '?': {
@@ -122,17 +120,17 @@ int parseArgs(int argc, char** argv, params* current_params) {
     else if(res_option != RES_OPTION_GENERATOR && res_option != RES_OPTION_LISTENER ) {
         throw std::runtime_error("ERROR options set! For help use -h");
     }
+    return current_params;
 };
 
-void signal_handler(int signum)
-{
+void signal_handler(int signum) {
     t_running = false;
 }
+
 int main(int argc, char** argv) {
     try
     {
-        params current_params;
-        parseArgs(argc, argv, &current_params);
+        auto current_params = parseArgs(argc, argv);
 
         struct sigaction sa;
         sa.sa_handler = signal_handler;
@@ -162,7 +160,7 @@ int main(int argc, char** argv) {
             listener->start();
         }
     }
-    catch ( const std::exception& error ) {
+    catch (const std::exception& error ) {
         std::cerr << "Caught: " << error.what( ) << std::endl;
         return 1;
     };

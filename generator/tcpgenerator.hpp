@@ -4,29 +4,24 @@
 
 #define TCP_LENGTH_MSG 16384
 
-struct TCPGenerator : Generator{
+struct TCPGenerator : Generator {
     TCPGenerator() = delete;
     TCPGenerator(const params& current_params) : Generator(current_params) {
         _testMessage = createTestMessage(current_params._test_message, TCP_LENGTH_MSG);
     }
     ~TCPGenerator() = default;
     void start() {
-        if (connect(_socket.get() , (struct sockaddr *)&_d_addr , sizeof(_d_addr)) < 0) {
-            throw std::runtime_error("tcp connect function");
-        }
+        _socket.connect();
         std::thread sender([&] () {
-            auto buf = std::make_unique<char[]>(TCP_LENGTH_MSG);
-            int32_t bytes_read(0);
-            while (t_running) {
-                if (send(_socket.get(), &_testMessage[0], _testMessage.size(), 0) < 0) {
-                    throw std::runtime_error("send function");
+            try {
+                auto buf = std::make_unique<char[]>(TCP_LENGTH_MSG);
+                while (t_running) {
+                    _socket.send(&_testMessage[0], (int32_t)_testMessage.size());
+                    int32_t bytes_read = _socket.recv(buf.get(), TCP_LENGTH_MSG);
                 }
-                if ((bytes_read = recv(_socket.get(), buf.get(), TCP_LENGTH_MSG, 0)) < 0) {
-                    throw std::runtime_error("recv function");
-                }
-                if (bytes_read == 0) {
-                    t_running = false;
-                }
+            }
+            catch (const std::exception& error) {
+                std::cout << "Server disconnected, reason: " << error.what() << std::endl;
             }
         });
         std::cout << "Begining sending..." << std::endl;

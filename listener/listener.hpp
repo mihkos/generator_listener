@@ -1,21 +1,20 @@
 #pragma once
 
-//#include "../includes.hpp"
 #include <thread>
 #include <iostream>
 #include <iomanip>
 #include "../params.hpp"
 #include "../socket.hpp"
 
-
-
 extern volatile bool t_running;
-
 
 class Listener {
 public:
     Listener() = default;
     Listener(const params& current_params): _socket(current_params), _received_bytes(0) {
+        _socket.bind();
+    }
+    virtual void start() {
         _speedmeter = std::thread([&] () {
             double one_mbt = 1024 * 128;
             uint64_t last_seen_received_bytes(0);
@@ -31,8 +30,9 @@ public:
                 start = std::chrono::system_clock::now();
             }
         });
-    }
-    virtual void start() = 0;
+    };
+    Listener(const Listener&) = delete;
+    Listener& operator=(const Listener&) = delete;
     virtual ~Listener() {
         _speedmeter.join();
     }
