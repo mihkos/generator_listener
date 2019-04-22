@@ -19,11 +19,32 @@ public:
     }
     Generator(const Generator&) = delete;
     Generator& operator=(const Generator&) = delete;
-    virtual void start() = 0;
-    virtual ~Generator() = default;
+    virtual void start() {
+        _speedmeter = std::thread([&] () {
+            double one_mbt = 1024 * 128;
+            uint64_t last_seen_received_bytes(0);
+            auto start = std::chrono::system_clock::now();
+            while(t_running) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+                auto end = std::chrono::system_clock::now();
+                double elapsed_seconds = std::chrono::duration<double>(end - start).count();
+                double res_speed = (_received_bytes - last_seen_received_bytes) / one_mbt / elapsed_seconds;
+                last_seen_received_bytes = _received_bytes;
+                std::cout << "speed: " <<  std::fixed << std::setw(10) << std::setprecision(3) << res_speed << " Mbps\r";
+                std::cout.flush();
+                start = std::chrono::system_clock::now();
+            }
+        });
+    }
+    virtual ~Generator()
+    {
+        _speedmeter.join();
+    }
 protected:
     Socket _socket;
     std::vector<char> _testMessage;
+    uint64_t _received_bytes;
+    std::thread _speedmeter;
     static std::vector<char> createTestMessage(std::string templ_msg, size_t length_result_msg)
     {
         std::vector<char> res_test_msg;

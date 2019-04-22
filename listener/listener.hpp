@@ -30,7 +30,7 @@ public:
                 start = std::chrono::system_clock::now();
             }
         });
-    };
+    }
     Listener(const Listener&) = delete;
     Listener& operator=(const Listener&) = delete;
     virtual ~Listener() {
