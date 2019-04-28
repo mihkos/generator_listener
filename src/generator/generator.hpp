@@ -4,16 +4,18 @@
 #include <vector>
 #include <string>
 #include <arpa/inet.h>
+#include <thread>
+#include <atomic>
 
 #include "../params.hpp"
-#include "../socket.hpp"
+#include "socket.hpp"
 
 extern volatile bool t_running;
 
 class Generator {
 public:
     Generator() = default;
-    Generator(const params& current_params) : _socket(current_params) {
+    Generator(const params& current_params) : _socket(current_params), _received_bytes(0) {
         _socket.bind();
         _socket.setPartner(current_params);
     }
@@ -43,7 +45,7 @@ public:
 protected:
     Socket _socket;
     std::vector<char> _testMessage;
-    uint64_t _received_bytes;
+    std::atomic<uint64_t> _received_bytes;
     std::thread _speedmeter;
     static std::vector<char> createTestMessage(std::string templ_msg, size_t length_result_msg)
     {

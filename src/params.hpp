@@ -6,5 +6,6 @@ struct params {
     uint16_t _sport = 0; // option -p
     uint16_t _dport = 0; //option -d
     std::string _dest_ip = "127.0.0.0"; //option -D
+    uint32_t _number_sessions = 1; //option -n
     std::string _test_message = "test message"; //option -m
 };

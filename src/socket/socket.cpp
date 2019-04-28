@@ -59,7 +59,6 @@ Socket Socket::accept() {
             if (connection < 0) {
                 throw std::runtime_error("tcp accept function");
             }
-
             return Socket(connection, client_addr);
         }
     }
@@ -75,6 +74,14 @@ void Socket::setPartner(const sockaddr_in& addr) {
     _partner_addr = sockaddr_in(addr);
 }
 
+void Socket::resetSPort(const uint16_t& new_sport) {
+    _sport = new_sport;
+}
+
+uint16_t Socket::getSPort() {
+    return _sport;
+}
+
 void Socket::listen() {
     if(::listen(_this_socket, QUEUE_SIZE_PENDING_CONNECTIONS) < 0) {
         throw std::runtime_error("tcp listen function");
@@ -83,7 +90,7 @@ void Socket::listen() {
 
 void Socket::connect() {
     if (::connect(_this_socket, (struct sockaddr *)&_partner_addr, sizeof(_partner_addr)) < 0) {
-        throw std::runtime_error("tcp connect function");
+        throw std::runtime_error(std::string("tcp connect function: ") + std::string(strerror(errno)));
     }
 }
 
@@ -95,21 +102,23 @@ std::string Socket::peername() {
     return peer_stream.str();
 }
 
-int32_t Socket::recv(char* buf, int max_recv_bytes) {
+uint32_t Socket::recv(char* buf, uint32_t max_recv_bytes) {
     int32_t bytes_read(0);
     do {
         errno = 0;
-        bytes_read = ::recv(_this_socket, buf, max_recv_bytes, 0);
+        if((bytes_read = ::recv(_this_socket, buf, max_recv_bytes, 0)) < 0) {
+            throw std::runtime_error(std::string("error recv function: ") + std::string(strerror(errno)));
+        }
     } while ((errno == EAGAIN) && (t_running != 0));
     if (bytes_read == 0) {
         throw std::runtime_error("connection closed");
     }
-    return bytes_read;
+    return (uint32_t)bytes_read;
 }
 
-int32_t Socket::recvfrom(char* buf, int max_recv_bytes, sockaddr_in* source_addr) {
+uint32_t Socket::recvfrom(char* buf, uint32_t max_recv_bytes, sockaddr_in* source_addr) {
     socklen_t source_addr_len = sizeof(*source_addr);
-    int32_t bytes_read(0);
+    uint32_t bytes_read(0);
     do {
         errno = 0;
         bytes_read = ::recvfrom(_this_socket, buf, max_recv_bytes, 0, (sockaddr *) source_addr, &source_addr_len);
@@ -117,14 +126,14 @@ int32_t Socket::recvfrom(char* buf, int max_recv_bytes, sockaddr_in* source_addr
     return bytes_read;
 }
 
-void Socket::sendto(char* buf, int amount_send_bytes) {
-    if (::sendto(_this_socket, buf, amount_send_bytes, 0, (sockaddr*)&_partner_addr, sizeof(_partner_addr)) < 0) {
+void Socket::sendto(char* buf, uint32_t amount_send_bytes) {
+    if (::sendto(_this_socket, buf, (size_t)amount_send_bytes, 0, (sockaddr*)&_partner_addr, sizeof(_partner_addr)) < 0) {
         throw std::runtime_error("error sendto function socket");
     }
 }
 
-void Socket::send(char* buf, int amount_send_bytes) {
-    if(::send(_this_socket, buf, amount_send_bytes, 0) < 0) {
-        throw std::runtime_error("cannot send message");
+void Socket::send(char* buf, uint32_t amount_send_bytes) {
+    if(::send(_this_socket, buf, (size_t)amount_send_bytes, 0) < 0) {
+        throw std::runtime_error(std::string("cannot send message: ") + std::string(strerror(errno)));
     }
 }

@@ -3,8 +3,9 @@
 #include <thread>
 #include <iostream>
 #include <iomanip>
+#include <atomic>
 #include "../params.hpp"
-#include "../socket.hpp"
+#include "socket.hpp"
 
 extern volatile bool t_running;
 
@@ -38,7 +39,7 @@ public:
     }
 protected:
     Socket _socket;
-    uint64_t _received_bytes;
+    std::atomic<uint64_t> _received_bytes;
     std::thread _speedmeter;
 };
 

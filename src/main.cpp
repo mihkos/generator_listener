@@ -11,19 +11,22 @@
 #define OPTION_SPORT 0x4
 #define OPTION_DEST_IP 0x8
 #define OPTION_DPORT 0x10
-#define OPTION_HELP 0x20
+#define OPTION_NUMBER_OF_SESSION 0x20
+#define OPTION_HELP 0x40
 
 #define RES_OPTION_LISTENER 0x5
 #define RES_OPTION_GENERATOR 0x1E
-#define RES_OPTION_HELP 0x20
+#define RES_OPTION_MULTI_GENERATOR 0x3E
+#define RES_OPTION_HELP OPTION_HELP
 
 volatile bool t_running = true;
 
 std::string usage(char** argv) {
     std::stringstream help_stream;
-    help_stream << "Use for udp_listener: " << argv[0] << " -l <udp|tcp> -p <listening_port>" << std::endl \
-              << "or use for udp_generator: " << argv[0] << " -g <udp|tcp> -p <source_port> -D <dest_ip> "
-                                                            "-d <dest_port> [-m <test_msg>]" << std::endl << std::endl;
+    help_stream << "Use for listener: " << argv[0] << " -l <udp|tcp> -p <listening_port>" << std::endl \
+              << "or use for generator: " << argv[0] << " -g <udp|tcp> -p <source_port> -D <dest_ip> "
+                                                        "-d <dest_port> [-n <sessions>] [-m <test_msg>]"
+                                                        << std::endl << std::endl;
     help_stream << "Help information: " \
     << "-h - help information" << std::endl \
     << "-l <udp|tcp> - option type of application listener for proto UDP or TCP" << std::endl \
@@ -32,6 +35,7 @@ std::string usage(char** argv) {
     << "only for -g flag: " << std::endl \
     << "\t -D <ip> - option destination ip" << std::endl \
     << "\t -d <port> - option destination port" << std::endl \
+    << "\t -n <number_of_sessions> - option number of session (for tcp generator)" << std::endl \
     << "\t -m <string_without_space> - option for set test message without space(for now)" << std::endl;
     return help_stream.str();
 }
@@ -43,7 +47,7 @@ params parseArgs(int argc, char** argv) {
         throw std::runtime_error(std::string("Not enough parameters!\n") + usage(argv));
     }
     params current_params;
-    while ((res = getopt(argc, argv, "hl:g:p:D:d:m:")) != -1) {
+    while ((res = getopt(argc, argv, "hl:g:p:D:d:n:m:")) != -1) {
         switch (res) {
             case 'h': {
                 res_option += OPTION_HELP;
@@ -105,6 +109,19 @@ params parseArgs(int argc, char** argv) {
                 res_option += OPTION_DPORT;
                 break;
             }
+            case 'n': {
+                char *end;
+                auto test = strtol(optarg, &end, 10);
+                if (optarg == end) {
+                    throw std::runtime_error("ERROR value number of session");
+                }
+                if(test < 0) {
+                    throw std::runtime_error("ERROR value number of session");
+                }
+                current_params._number_sessions = (uint32_t)test;
+                res_option += OPTION_NUMBER_OF_SESSION;
+                break;
+            }
             case 'm': {
                 current_params._test_message = std::string(optarg);
                 break;
@@ -117,7 +134,9 @@ params parseArgs(int argc, char** argv) {
     if(res_option == RES_OPTION_HELP) {
         std::cout << usage(argv);
     }
-    else if(res_option != RES_OPTION_GENERATOR && res_option != RES_OPTION_LISTENER ) {
+    else if(res_option != RES_OPTION_GENERATOR &&
+            res_option != RES_OPTION_LISTENER &&
+            res_option != RES_OPTION_MULTI_GENERATOR) {
         throw std::runtime_error("ERROR options set! For help use -h");
     }
     return current_params;
