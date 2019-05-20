@@ -1,139 +1,102 @@
 #include "socket.hpp"
 
-Socket::Socket(const params& current_params) : _sport(current_params._sport) {
-    if(current_params._type_proto == IPPROTO_UDP) {
-        if ((_this_socket = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-            throw std::runtime_error("socket function");
-        }
-        timeval tv = {RECV_TIMEOUT_SECS, RECV_TIMEOUT_USECS};
-        if(setsockopt(_this_socket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-            close(_this_socket);
-            throw std::runtime_error("setsockopt function for recv_timeout");
-        }
-    }
-    else if(current_params._type_proto == IPPROTO_TCP) {
-        if ((_this_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-            throw std::runtime_error("socket function");
-        }
-        timeval tv = {RECV_TIMEOUT_SECS, RECV_TIMEOUT_USECS};
-        if(setsockopt(_this_socket, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0) {
-            close(_this_socket);
-            throw std::runtime_error("setsockopt function for recv_timeout");
-        }
-        int32_t enable = 1;
-        if (setsockopt(_this_socket, SOL_SOCKET, SO_REUSEADDR,  &enable, sizeof(enable)) < 0) {
-            close(_this_socket);
-            throw std::runtime_error("setsockopt function");
-        }
-    }
-}
-
 Socket::~Socket() {
-    shutdown(_this_socket, SHUT_WR);
-    close(_this_socket);
+    if(_nativeHandle >= 0) {
+        close(_nativeHandle);
+    }
 }
-
-void Socket::bind() {
-    sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(_sport);
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    if (::bind(_this_socket, (sockaddr *) &addr, sizeof(addr)) < 0) {
-        close(_this_socket);
-        throw std::runtime_error("bind function");
+void Socket::shutdown() {
+    ::shutdown(_nativeHandle, SHUT_WR);
+}
+void Socket::setsockopt(int level, int optname, const void *optval, socklen_t optlen) {
+    if (::setsockopt(_nativeHandle, level, optname,  optval, optlen) < 0) {
+        throw std::runtime_error("setsockopt function");
+    }
+}
+void Socket::bind(uint16_t sport) {
+    sockaddr_in native_addr;
+    native_addr.sin_family = AF_INET;
+    native_addr.sin_port = htons(sport);
+    native_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    if (::bind(_nativeHandle, (sockaddr *)&native_addr, sizeof(native_addr)) < 0) {
+        throw std::runtime_error(std::string("bind function: ") + std::string(strerror(errno)));
     }
 }
 
-Socket Socket::accept() {
-    while(t_running) {
-        fd_set set;
-        FD_ZERO(&set);
-        FD_SET(_this_socket, &set);
-        timeval timeout = {0, 0};
-        auto count = select(_this_socket + 1, &set, 0, 0, &timeout);
-        if (count) {
-            sockaddr_in client_addr;
-            socklen_t client_addr_len = sizeof(client_addr);
-            auto connection = ::accept(_this_socket, (sockaddr *) &client_addr, &client_addr_len);
+Socket Socket::accept(Endpoint* endpoint) {
+    sockaddr_in client_addr{};
+    socklen_t client_addr_len = sizeof(client_addr);
+    int32_t connection;
+    connection = ::accept(_nativeHandle, (sockaddr *) &client_addr, &client_addr_len);
 
-            if (connection < 0) {
-                throw std::runtime_error("tcp accept function");
-            }
-            return Socket(connection, client_addr);
-        }
+    if (connection < 0) {
+        throw std::runtime_error(std::string("tcp accept function: ") + std::string(strerror(errno)));
     }
+    endpoint = new Endpoint(client_addr);
+    return Socket(connection);
 }
 
-void Socket::setPartner(const params& current_params) {
-    _partner_addr.sin_family = AF_INET;
-    inet_pton(AF_INET, current_params._dest_ip.c_str(), &(_partner_addr.sin_addr));
-    _partner_addr.sin_port = htons(current_params._dport);
-}
-
-void Socket::setPartner(const sockaddr_in& addr) {
-    _partner_addr = sockaddr_in(addr);
-}
-
-void Socket::resetSPort(const uint16_t& new_sport) {
-    _sport = new_sport;
-}
-
-uint16_t Socket::getSPort() {
-    return _sport;
-}
-
-void Socket::listen() {
-    if(::listen(_this_socket, QUEUE_SIZE_PENDING_CONNECTIONS) < 0) {
+void Socket::listen(int32_t backlog) {
+    if(::listen(_nativeHandle, backlog) < 0) {
         throw std::runtime_error("tcp listen function");
     }
 }
 
-void Socket::connect() {
-    if (::connect(_this_socket, (struct sockaddr *)&_partner_addr, sizeof(_partner_addr)) < 0) {
+void Socket::connect(const Endpoint& dest_addr) {
+    auto partner_addr(dest_addr.getAsSockAddr());
+    if (::connect(_nativeHandle, (struct sockaddr *)&partner_addr, sizeof(partner_addr)) < 0) {
         throw std::runtime_error(std::string("tcp connect function: ") + std::string(strerror(errno)));
     }
 }
 
-std::string Socket::peername() {
+std::string Socket::getpeername(const Endpoint& endpoint) {
     std::stringstream peer_stream;
-    auto ip_addr = std::make_unique<char[]>(INET_ADDRSTRLEN);
-    inet_ntop(AF_INET, &(_partner_addr.sin_addr), ip_addr.get(), INET_ADDRSTRLEN);
-    peer_stream  << ip_addr.get() << ":" << ntohs(_partner_addr.sin_port);
+    peer_stream  << endpoint.getIP() << ":" << endpoint.getPort();
     return peer_stream.str();
 }
 
-uint32_t Socket::recv(char* buf, uint32_t max_recv_bytes) {
-    int32_t bytes_read(0);
-    do {
-        errno = 0;
-        if((bytes_read = ::recv(_this_socket, buf, max_recv_bytes, 0)) < 0) {
-            throw std::runtime_error(std::string("error recv function: ") + std::string(strerror(errno)));
-        }
-    } while ((errno == EAGAIN) && (t_running != 0));
-    if (bytes_read == 0) {
-        throw std::runtime_error("connection closed");
+size_t Socket::recv(uint8_t* buf, size_t len, int32_t flags)
+{
+    int32_t bytes_recv(-1);
+    if((bytes_recv = ::recv(_nativeHandle, buf, len, flags)) < 0) {
+        throw std::system_error(std::error_code(EINTR, std::system_category()), "error recv function");
+        //throw std::runtime_error("error recv function");
     }
-    return (uint32_t)bytes_read;
+    if (bytes_recv == 0) {
+        throw std::system_error(std::error_code(EINTR, std::system_category()), "connection closed"); //std::runtime_error("connection closed");
+    }
+    return (size_t )bytes_recv;
+}
+size_t Socket::send(const uint8_t* buf, size_t len, int32_t flags) {
+    int32_t bytes_sent(0);
+    if((bytes_sent = ::send(_nativeHandle, buf, len, flags)) < 0) {
+        throw std::system_error(std::error_code(EINTR, std::system_category()), "cannot send message");
+        //throw std::runtime_error("cannot send message");
+    }
+    return (size_t)bytes_sent;
+}
+size_t Socket::recvfrom(uint8_t *buf, size_t len, Endpoint* src_addr, int32_t flags) {
+    sockaddr_in source_addr{};
+    socklen_t source_addr_len = sizeof(source_addr);
+    int32_t bytes_read(-1);
+    if((bytes_read = ::recvfrom(_nativeHandle, buf, len, 0, (sockaddr *)&source_addr, &source_addr_len)) < 0) {
+        throw std::system_error(std::error_code(EAGAIN, std::system_category()), "error recvfrom function");
+        //throw std::runtime_error("error recvfrom function");
+    }
+    src_addr->reset(source_addr);
+
+    return (size_t)bytes_read;
+}
+size_t Socket::sendto(const uint8_t* buf, size_t len, const Endpoint& dest_addr, int32_t flags) {
+    auto partner_addr(dest_addr.getAsSockAddr());
+    int32_t bytes_sent(0);
+    if ((bytes_sent = ::sendto(_nativeHandle, buf, len, 0, (sockaddr*)&partner_addr, sizeof(partner_addr))) < 0) {
+        throw std::system_error(std::error_code(EINTR, std::system_category()), "error sendto function socket");
+        //throw std::runtime_error("error sendto function socket");
+    }
+    return (size_t)bytes_sent;
 }
 
-uint32_t Socket::recvfrom(char* buf, uint32_t max_recv_bytes, sockaddr_in* source_addr) {
-    socklen_t source_addr_len = sizeof(*source_addr);
-    uint32_t bytes_read(0);
-    do {
-        errno = 0;
-        bytes_read = ::recvfrom(_this_socket, buf, max_recv_bytes, 0, (sockaddr *) source_addr, &source_addr_len);
-    } while ((errno == EAGAIN) && (t_running != 0));
-    return bytes_read;
-}
-
-void Socket::sendto(char* buf, uint32_t amount_send_bytes) {
-    if (::sendto(_this_socket, buf, (size_t)amount_send_bytes, 0, (sockaddr*)&_partner_addr, sizeof(_partner_addr)) < 0) {
-        throw std::runtime_error("error sendto function socket");
-    }
-}
-
-void Socket::send(char* buf, uint32_t amount_send_bytes) {
-    if(::send(_this_socket, buf, (size_t)amount_send_bytes, 0) < 0) {
-        throw std::runtime_error(std::string("cannot send message: ") + std::string(strerror(errno)));
-    }
+int32_t Socket::nativeHandle() const {
+    return _nativeHandle;
 }

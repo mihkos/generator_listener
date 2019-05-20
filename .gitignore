@@ -1,4 +1,4 @@
-#folder build cmake clion
+#folder built cmake clion
 cmake-build-debug/ 
 
 #folder xmls clion
@@ -6,3 +6,6 @@ cmake-build-debug/
 
 #folder build cmake console
 build/
+
+#folder built external projects
+external
