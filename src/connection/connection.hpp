@@ -14,7 +14,7 @@ extern volatile bool main_is_running;
 struct Connection {
     Connection(const json& j_config) : _socket(nullptr){}
     Connection() = default;
-    ~Connection() = default;
+    virtual ~Connection() = default;
     Connection(Connection&& other) = default;
     Connection& operator=(Connection&& other) {
         if (&other == this)

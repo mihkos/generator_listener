@@ -2,9 +2,10 @@
 #include <signal.h>
 #include "clientconnectionmanager.hpp"
 #include "serverconnectionmanager.hpp"
-
+#include "clipp.h"
 #include "nlohmann/json.hpp"
 
+using namespace clipp;
 volatile bool main_is_running = true;
 Statistics statistics;
 json parseCmdl(int argc, char** argv)
@@ -43,8 +44,8 @@ int main(int argc, char** argv) {
 
         switch (j_config["mode"].get<uint8_t>()) {
             case 0:  //Mode::Client:
-                j_config["number_udp_clients"] = 0;
-                j_config["number_tcp_clients"] = 1;
+                j_config["number_udp_clients"] = 5;
+                j_config["number_tcp_clients"] = 5;
                 j_config["dest_ip"] = "127.0.0.1";
                 j_config["message"] = "test message";
                 j_config["begin_sport"] = 5090;
@@ -57,7 +58,7 @@ int main(int argc, char** argv) {
                 j_config["tcp_sport"] = 5050;
                 j_config["backlog"] = 5;
                 j_config["start_sport"] = 5060;
-                j_config["end_sport"] = 5061;
+                j_config["end_sport"] = 5065;
                 connectionManager = std::make_unique<ServerConnectionManager>(j_config);
                 break;
             default:
