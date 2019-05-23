@@ -10,7 +10,7 @@ void Socket::shutdown() {
 }
 void Socket::setsockopt(int level, int optname, const void *optval, socklen_t optlen) {
     if (::setsockopt(_nativeHandle, level, optname,  optval, optlen) < 0) {
-        throw std::runtime_error("setsockopt function");
+        throw std::system_error(std::error_code(errno, std::system_category()), "error setsockopt function");
     }
 }
 void Socket::bind(uint16_t sport) {
@@ -19,7 +19,7 @@ void Socket::bind(uint16_t sport) {
     native_addr.sin_port = htons(sport);
     native_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     if (::bind(_nativeHandle, (sockaddr *)&native_addr, sizeof(native_addr)) < 0) {
-        throw std::runtime_error(std::string("bind function: ") + std::string(strerror(errno)));
+        throw std::system_error(std::error_code(errno, std::system_category()), "error bind function");
     }
 }
 
@@ -30,7 +30,7 @@ Socket Socket::accept(Endpoint* endpoint) {
     connection = ::accept(_nativeHandle, (sockaddr *) &client_addr, &client_addr_len);
 
     if (connection < 0) {
-        throw std::runtime_error(std::string("tcp accept function: ") + std::string(strerror(errno)));
+        throw std::system_error(std::error_code(errno, std::system_category()), "error tcp accept function");
     }
     endpoint = new Endpoint(client_addr);
     return Socket(connection);
@@ -38,14 +38,14 @@ Socket Socket::accept(Endpoint* endpoint) {
 
 void Socket::listen(int32_t backlog) {
     if(::listen(_nativeHandle, backlog) < 0) {
-        throw std::runtime_error("tcp listen function");
+        throw std::system_error(std::error_code(errno, std::system_category()), "error tcp listen function");
     }
 }
 
 void Socket::connect(const Endpoint& dest_addr) {
     auto partner_addr(dest_addr.getAsSockAddr());
     if (::connect(_nativeHandle, (struct sockaddr *)&partner_addr, sizeof(partner_addr)) < 0) {
-        throw std::runtime_error(std::string("tcp connect function: ") + std::string(strerror(errno)));
+        throw std::system_error(std::error_code(errno, std::system_category()), "error tcp connect function");
     }
 }
 
@@ -59,7 +59,7 @@ size_t Socket::recv(uint8_t* buf, size_t len, int32_t flags)
 {
     int32_t bytes_recv(-1);
     if((bytes_recv = ::recv(_nativeHandle, buf, len, flags)) < 0) {
-        throw std::system_error(std::error_code(EINTR, std::system_category()), "error recv function");
+        throw std::system_error(std::error_code(errno, std::system_category()), "error recv function");
         //throw std::runtime_error("error recv function");
     }
     if (bytes_recv == 0) {
@@ -70,8 +70,7 @@ size_t Socket::recv(uint8_t* buf, size_t len, int32_t flags)
 size_t Socket::send(const uint8_t* buf, size_t len, int32_t flags) {
     int32_t bytes_sent(0);
     if((bytes_sent = ::send(_nativeHandle, buf, len, flags)) < 0) {
-        throw std::system_error(std::error_code(EINTR, std::system_category()), "cannot send message");
-        //throw std::runtime_error("cannot send message");
+        throw std::system_error(std::error_code(errno, std::system_category()), "cannot send message");
     }
     return (size_t)bytes_sent;
 }
@@ -80,8 +79,7 @@ size_t Socket::recvfrom(uint8_t *buf, size_t len, Endpoint* src_addr, int32_t fl
     socklen_t source_addr_len = sizeof(source_addr);
     int32_t bytes_read(-1);
     if((bytes_read = ::recvfrom(_nativeHandle, buf, len, 0, (sockaddr *)&source_addr, &source_addr_len)) < 0) {
-        throw std::system_error(std::error_code(EAGAIN, std::system_category()), "error recvfrom function");
-        //throw std::runtime_error("error recvfrom function");
+        throw std::system_error(std::error_code(errno, std::system_category()), "error recvfrom function");
     }
     src_addr->reset(source_addr);
 
@@ -91,8 +89,7 @@ size_t Socket::sendto(const uint8_t* buf, size_t len, const Endpoint& dest_addr,
     auto partner_addr(dest_addr.getAsSockAddr());
     int32_t bytes_sent(0);
     if ((bytes_sent = ::sendto(_nativeHandle, buf, len, 0, (sockaddr*)&partner_addr, sizeof(partner_addr))) < 0) {
-        throw std::system_error(std::error_code(EINTR, std::system_category()), "error sendto function socket");
-        //throw std::runtime_error("error sendto function socket");
+        throw std::system_error(std::error_code(errno, std::system_category()), "error sendto function socket");
     }
     return (size_t)bytes_sent;
 }
