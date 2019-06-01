@@ -22,3 +22,15 @@ uint16_t TCPConnection::send(const uint8_t* data, size_t size) {
 uint16_t TCPConnection::receive(uint8_t* data, size_t size) {
     return (uint16_t )_socket->recv(data, size, 0);
 }
+void TCPConnection::doClientConnection(const uint8_t *outdata, size_t outsize, uint8_t *indata, size_t insize) {
+    auto bytes_sent = send(outdata, outsize);
+    statistics._bytes_sent += bytes_sent;
+    auto bytes_read = receive(indata, insize);
+    statistics._bytes_received += bytes_read;
+}
+void TCPConnection::doServerConnection(uint8_t *inOutData, size_t insize) {
+    auto bytes_read = receive(inOutData, insize);
+    statistics._bytes_received += bytes_read;
+    auto bytes_sent = send(inOutData, bytes_read);
+    statistics._bytes_sent += bytes_sent;
+}

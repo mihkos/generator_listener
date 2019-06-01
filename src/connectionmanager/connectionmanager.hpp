@@ -1,7 +1,7 @@
 #pragma once
 
 #include "connection.hpp"
-const size_t length_test_message = 16384;
+
 
 struct connection_thread {
     std::thread _thread;

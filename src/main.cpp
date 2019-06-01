@@ -9,59 +9,66 @@ using namespace clipp;
 volatile bool main_is_running = true;
 Statistics statistics;
 
+
 void signal_handler(int signum) {
     main_is_running = false;
 }
 
-int main(int argc, char** argv) {
+void checkPorts(uint16_t& udp_port_X, uint16_t& udp_port_Y, uint16_t tcp_port)
+{
+    if(udp_port_X > udp_port_Y) {
+        std::swap(udp_port_X, udp_port_Y);
+    }
+    if((udp_port_X <= tcp_port) & (tcp_port <= udp_port_Y))
+        throw std::runtime_error("Bad tcp or udp ports values");
+}
+int main(int32_t argc, char** argv) {
+    std::unique_ptr<ConnectionManager> connectionManager;
     try {
-
+        enum class Mode{Client, Server, Help};
         json j_config;
+        j_config["message"] = "test message";
+        auto selected = Mode::Help;
+        uint16_t tcp_port(0), backlog(5), number_udp_clients(0), number_tcp_clients(0), begin_client_port(0), udp_port_X(0), udp_port_Y(0);
         auto is_IP = [](const std::string& arg) {
             sockaddr_in check_ip;
             auto test = inet_pton(AF_INET, arg.c_str(), &(check_ip.sin_addr));
             return (test > 0); };
-        enum class Mode{Client, Server, Help};
-        Mode selected = Mode::Help;
-        uint16_t tcp_sport(0), backlog(0), start_sport(0), end_sport(0), number_udp_clients(0), number_tcp_clients(0),
-        begin_sport(0), begin_dport(0), end_dport(0), tcp_dport(0);
         auto clientMode = (
                 command("client").set(selected,Mode::Client),
                 (required("-tcp_clients") & integer("number", number_tcp_clients)) % "number_tcp_clients",
-                (required("-tcp_dport") & integer("port", tcp_dport)) % "destionation tcp port (on server)",
+                (required("-tcp_dport") & integer("port", tcp_port)) % "destionation tcp port (on server)",
                 (required("-dest_IP") & value(is_IP, "string_IP", j_config["dest_ip"])) % "destination IP (server IP)",
-                (required("-sport") & integer("port", begin_sport)) % "begin port for all clients (udp and tcp)",
+                (required("-sport") & integer("port", begin_client_port)) % "begin port for all clients (udp and tcp)",
                 (required("-udp_clients") & integer("number", number_udp_clients)) % "number udp clients",
-                (required("-udp_dports") & integer("b_port", begin_dport) & integer("e_port", end_dport)) % "begin and end destionation udp port (on server) (X Y)"
+                (required("-udp_dports") & integer("b_port", udp_port_X) & integer("e_port", udp_port_Y)) % "begin and end destionation udp port (on server) (X Y)",
+                (option("-m --message") & value("test-message", j_config["message"])) % "test message (without space) for sending"
                 );
 
         auto serverMode = (
                 command("server").set(selected, Mode::Server),
-                (required("-tcp_sport") & integer("port", tcp_sport)) % "listening tcp port",
-                (required("-b", "--backlog") & integer("size", backlog)) % "queue size pending connections for tcp",
-                (required("-udp_sports") & integer("b_port", start_sport) & integer("e_port", end_sport)) % "begin and end listening udp ports (X Y)"
+                (required("-tcp_sport") & integer("port", tcp_port)) % "listening tcp port",
+                (option("-b", "--backlog") & integer("size", backlog)) % "queue size pending connections for tcp",
+                (required("-udp_sports") & integer("b_port", udp_port_X) & integer("e_port", udp_port_Y)) % "begin and end listening udp ports (X Y)"
                 );
 
         auto cli = (
                 (clientMode | serverMode | command("help").set(selected,Mode::Help) ));
-        std::unique_ptr<ConnectionManager> connectionManager;
+
         if(parse(argc, argv, cli)) {
+            checkPorts(udp_port_X, udp_port_Y, tcp_port);
+            j_config["udp_port_X"] = udp_port_X;
+            j_config["udp_port_Y"] = udp_port_Y;
+            j_config["tcp_port"] = tcp_port;
             switch(selected) {
                 case Mode::Client:
                     j_config["number_udp_clients"] = number_udp_clients;
                     j_config["number_tcp_clients"] = number_tcp_clients;
-                    j_config["message"] = "test message";
-                    j_config["begin_sport"] = begin_sport;
-                    j_config["begin_dport"] = begin_dport;
-                    j_config["end_dport"] = end_dport;
-                    j_config["tcp_dport"] = tcp_dport;
+                    j_config["begin_sport"] = begin_client_port;
                     connectionManager = std::make_unique<ClientConnectionManager>(j_config);
                     break;
                 case Mode::Server:
-                    j_config["tcp_sport"] = tcp_sport;
                     j_config["backlog"] = backlog;
-                    j_config["start_sport"] = start_sport;
-                    j_config["end_sport"] = end_sport;
                     connectionManager = std::make_unique<ServerConnectionManager>(j_config);
                     break;
                 case Mode::Help: std::cout << make_man_page(cli, "main");
@@ -87,6 +94,10 @@ int main(int argc, char** argv) {
     }
     catch (const std::exception& error ) {
         main_is_running = false;
+        if(connectionManager) {
+            connectionManager->stop();
+        }
+
         std::cerr << "Caught: " << error.what( ) << std::endl;
     };
 

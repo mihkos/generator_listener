@@ -1,10 +1,10 @@
 #include "serverconnectionmanager.hpp"
 
 ServerConnectionManager::ServerConnectionManager(const json& j_config) :
-        _tcp_acceptor(j_config["tcp_sport"], j_config["backlog"])
+        _tcp_acceptor(j_config["tcp_port"], j_config["backlog"])
 {
-    _start_udp_port = j_config["start_sport"];
-    _end_udp_port = j_config["end_sport"];
+    _start_udp_port = j_config["udp_port_X"];
+    _end_udp_port = j_config["udp_port_Y"];
 }
 void ServerConnectionManager::start() {
     _tcp_acceptor.start(this);
@@ -24,10 +24,7 @@ void ServerConnectionManager::do_run_connection(std::unique_ptr<Connection> conn
     uint8_t buf[length_test_message];
     while (*(is_running.get())) {
         try {
-            auto bytes_read = connection->receive(buf, length_test_message);
-            statistics._bytes_received += bytes_read;
-            auto bytes_sent = connection->send(buf, bytes_read);
-            statistics._bytes_sent += bytes_sent;
+            connection->doServerConnection(buf, length_test_message);
         }
         catch (const std::system_error& error) {
             if(error.code().value() != EAGAIN) {
