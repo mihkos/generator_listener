@@ -13,12 +13,11 @@
 #include <climits>
 #include <memory>
 
-#define RECV_TIMEOUT_SECS 2
-#define RECV_TIMEOUT_USECS 0
-
 using json = nlohmann::json;
 struct Socket {
 public:
+    static const int16_t Recv_Timeout_Secs = 2;
+    static const int16_t Recv_Timeout_Usecs = 0;
     Socket() = delete;
     Socket(int32_t domain, int32_t type, int32_t protocol) {
         if ((_nativeHandle = socket(domain, type, protocol)) < 0) {

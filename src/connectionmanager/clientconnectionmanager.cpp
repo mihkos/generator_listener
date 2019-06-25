@@ -4,7 +4,7 @@ ClientConnectionManager::ClientConnectionManager(const json & j_config):
         _M_udp(j_config["number_udp_clients"]),
         _N_tcp(j_config["number_tcp_clients"]),
         _server_addr(j_config["dest_ip"]),
-        _testMessage(createTestMessage(j_config["message"].get<std::string>(), length_test_message)) {
+        _testMessage(createTestMessage(j_config["message"].get<std::string>(), Connection::Lenght_Test_Message)) {
     uint16_t begin_sport = j_config["begin_sport"];
     uint16_t begin_dport = j_config["udp_port_X"];
     uint16_t end_dport = j_config["udp_port_Y"];
@@ -40,10 +40,10 @@ void ClientConnectionManager::start() {
 }
 
 void ClientConnectionManager::do_run_connection(std::unique_ptr<Connection> connection, std::shared_ptr<bool> is_running) {
-    uint8_t buf[length_test_message];
+    uint8_t buf[Connection::Lenght_Test_Message];
     while (*(is_running.get())){
         try {
-            connection->doClientConnection(&_testMessage[0], _testMessage.size(), buf, length_test_message);
+            connection->doClientConnection(&_testMessage[0], _testMessage.size(), buf, Connection::Lenght_Test_Message);
         }
         catch (const std::system_error& error) {
             if(error.code().value() != EAGAIN) {

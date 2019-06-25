@@ -21,10 +21,10 @@ void ServerConnectionManager::stop() {
 }
 
 void ServerConnectionManager::do_run_connection(std::unique_ptr<Connection> connection, std::shared_ptr<bool> is_running) {
-    uint8_t buf[length_test_message];
+    uint8_t buf[Connection::Lenght_Test_Message];
     while (*(is_running.get())) {
         try {
-            connection->doServerConnection(buf, length_test_message);
+            connection->doServerConnection(buf, Connection::Lenght_Test_Message);
         }
         catch (const std::system_error& error) {
             if(error.code().value() != EAGAIN) {

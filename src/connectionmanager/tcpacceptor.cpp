@@ -3,7 +3,7 @@
 TCPAcceptor::TCPAcceptor(uint16_t sport, uint32_t backlog = 5) {
     _acceptor = std::make_unique<Socket>(AF_INET, SOCK_STREAM, 0);
     _acceptor->bind(sport);
-    timeval tv = {RECV_TIMEOUT_SECS, RECV_TIMEOUT_USECS};
+    timeval tv = {Socket::Recv_Timeout_Secs, Socket::Recv_Timeout_Usecs};
     _acceptor->setsockopt(SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     int32_t enable = 1;
     _acceptor->setsockopt(SOL_SOCKET, SO_REUSEADDR,  &enable, sizeof(enable));
