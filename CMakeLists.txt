@@ -20,17 +20,8 @@ if (CMAKE_BUILD_TYPE MATCHES Release)
     set(CMAKE_REQUIRED_FLAGS -std=c++17 -O3 -Wall -Wextra -pedantic)
 endif()
 
-find_library(PTHREAD_LIB pthread)
-if(NOT PTHREAD_LIB)
-    message(FATAL_ERROR "pthread library not found")
-endif()
+add_subdirectory(src)
 
-set(SOURCES main.cpp socket.cpp)
-
-
-add_executable(main ${SOURCES})
 set_property(TARGET main PROPERTY CXX_STANDARD 17)
-target_include_directories(main PUBLIC generator)
-target_include_directories(main PUBLIC listener)
 
-target_link_libraries(main pthread )
+
